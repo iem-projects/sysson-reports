@@ -687,7 +687,7 @@ The settings for the test data set are shown in \figref{fig:sonif-3-editor-shot}
 
 \subsection{Working with Timbre}
 
-In the next step, we introduce two different frequency ranges for cold and hot anomalies, and further try to distinguish them perceptually by changing the type of oscillator (\figref{fig:sonif4-timbre-code}). For the hot anomalies a lower register (by default) is chosen, and the oscillator is a distorted Brownian noise fed through a resonator and mixed with a sawtooth oscillator one octave below that is fed through a low-pass filter. For the cold anomalies, a dust generator is fed through a resonator. Furthermore, an auxiliary signal with user-definable amplitude adds information about the time grid, playing short filtered noise pulses every month (for frequencies up to 6 months per second) and accent on Januaries and Julies (\figref{fig:sonif4-grid-code}). 
+In the next step, we introduce two different frequency ranges for cold and hot anomalies, and further try to distinguish them perceptually by changing the type of oscillator (\figref{fig:sonif4-timbre-code}). For the hot anomalies a lower register (by default) is chosen, and the oscillator is a distorted Brownian noise fed through a resonator and mixed with a sawtooth oscillator one octave below that is fed through a low-pass filter. For the cold anomalies, a dust generator is fed through a resonator. Furthermore, an auxiliary signal with user-definable amplitude adds information about the time grid, playing short filtered noise pulses every month (for frequencies up to 6 months per second) and accent on Januaries and Julies (\figref{fig:sonif4-grid-code}). \textbf{Assessment:} We should have UGen support for correctly using the time dimension in terms of calendar decomposition.
 
 \begin{figure}
 \begin{lstlisting}[style=scala]
@@ -748,7 +748,7 @@ Pan2.ar(gridSig)
 \label{fig:sonif4-compare-with-plot}
 \end{figure}
 
-We went back to compare the anomalies based on monthly median versus mean value. The result is shown in \figref{}. It seems that although the anomalies are slightly stronger when using the median, the trajectory following works better with the mean values, which can be observed especially towards the end of the sonogram in the cold anomalies (right channel or shown on the bottom half). The bounce for the mean based sonification is uploaded here: \url{https://soundcloud.com/syssonproject/sonif-4-based-on-median-anomalies}
+We went back to compare the anomalies based on monthly median versus mean value. The result is shown in \figref{fig:sonif4-compare-median-mean}. It seems that although the anomalies are slightly stronger when using the median, the trajectory following works better with the mean values, which can be observed especially towards the end of the sonogram in the cold anomalies (right channel or shown on the bottom half). The bounce for the mean based sonification is uploaded here: \url{https://soundcloud.com/syssonproject/sonif-4-based-on-median-anomalies}
 
 \begin{figure}
 \includegraphics[width=\textwidth]{figures/sonif4-compare-median-mean.jpg}
