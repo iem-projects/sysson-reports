@@ -669,12 +669,12 @@ output := mix
 \end{lstlisting}
 % \end{figure}
 %
-The settings for the test data set are shown in \figref{fig:sonif-3-editor-shot.jpg}. A bounce of the audio output was made, a sonogram of which is shown in \figref{fig:sonif-3-bounce-sonogram}.
+The settings for the test data set are shown in \figref{fig:sonif-3-editor-shot}. A bounce of the audio output was made, a sonogram of which is shown in \figref{fig:sonif-3-bounce-sonogram}.
 
 \begin{figure}
 \includegraphics[width=\textwidth]{figures/sonif-3-editor-shot.jpg}
 \caption{Matrix selection and parameter settings for sonification-3.}
-\label{fig:sonif-3-editor-shot.jpg}
+\label{fig:sonif-3-editor-shot}
 \end{figure}
 
 \begin{figure}
@@ -684,6 +684,77 @@ The settings for the test data set are shown in \figref{fig:sonif-3-editor-shot.
 \end{figure}
 
 \paragraph{Discussion:} The perceived sound strongly depends on the parameters, the trajectory coherence fraction \Verb!maxDf!, the oscillator frequency range \Verb!minFreq! and \Verb!maxFreq!, and the envelope release time \Verb!egRls!. We are projecting the positive anomalies to the left channel, and the negative anomalies to the right channel. While the glissandi can be heard individually on both channels, the rhythmic regularity and shift against each other is still difficult to perceive. Possible routes from here are the use of different frequency registers (as was done in the SysSon workshop), or the decoupling of frequency and altitude altogether.
+
+\subsection{Working with Timbre}
+
+In the next step, we introduce two different frequency ranges for cold and hot anomalies, and further try to distinguish them perceptually by changing the type of oscillator (\figref{fig:sonif4-timbre-code}). For the hot anomalies a lower register (by default) is chosen, and the oscillator is a distorted Brownian noise fed through a resonator and mixed with a sawtooth oscillator one octave below that is fed through a low-pass filter. For the cold anomalies, a dust generator is fed through a resonator. Furthermore, an auxiliary signal with user-definable amplitude adds information about the time grid, playing short filtered noise pulses every month (for frequencies up to 6 months per second) and accent on Januaries and Julies (\figref{fig:sonif4-grid-code}). 
+
+\begin{figure}
+\begin{lstlisting}[style=scala]
+val filterQ   = UserValue.kr("filter Q (1 to 100)", 20)
+val filterRQ  = filterQ.reciprocal
+
+val minFreq   = if (isUp) minFreqH else minFreqC
+val maxFreq   = if (isUp) maxFreqH else maxFreqC
+val freqScale = voiceFreq.linexp(0, 1, minFreq, maxFreq)
+val freqLag   = Lag.ar(freqScale, time = lagTimeGt)
+val osc       = if (isUp) {
+    LPF.ar(Saw.ar(freqLag/2), freqLag) * 0.25 +
+    Resonz.ar(BrownNoise.ar.sqrt, freqLag, rq = filterRQ) * 1.5
+  } else {
+    Resonz.ar(Dust2.ar(400), freqLag, rq = filterRQ) * 10
+  }
+val sines     = osc * voiceEG * ampLag
+\end{lstlisting}
+\caption{Different timbres and registers}
+\label{fig:sonif4-timbre-code}
+\end{figure}
+
+\begin{figure}
+\begin{lstlisting}[style=scala]
+// time grid indicator volume
+val gridAmp      = UserValue.kr("time grid [dB]", -18).dbamp
+
+val seconds      = tp
+val daysPerYear  = 365.2422  // average according to NASA
+val daysPerMonth = daysPerYear / 12
+val secsPerMonth = daysPerMonth * 24 * 60 * 60
+val months       = seconds / secsPerMonth
+val month        = months.floor % 12
+val isJan        = month sig_== 0
+val isJul        = month sig_== 6
+
+val monthPulse  = Impulse.ar(speed)
+val gridDecTime = speed.reciprocal.min(0.5)
+val gridDecay   = Decay.ar(monthPulse, gridDecTime)
+val gridBase    = WhiteNoise.ar(gridDecay) * gridAmp
+val gridJan     = Resonz.ar(gridBase, 1000, rq = 1.0)
+val gridJul     = Resonz.ar(gridBase, 3500, rq = 0.5) * 1.5
+val gridPlain0  = Resonz.ar(gridBase, 2000, rq = 2.0) * 0.25
+val gridPlain   = Select.ar(speed <= 6, Seq(DC.ar(0), gridPlain0))
+val gridIdx     = isJan | (isJul << 1)
+val gridSig     = Select.ar(index = gridIdx, in = Seq(gridPlain, gridJan, gridJul))
+Pan2.ar(gridSig)
+\end{lstlisting}
+\caption{Temporal grid marker sound generator}
+\label{fig:sonif4-grid-code}
+\end{figure}
+
+\figref{fig:sonif4-compare-with-plot} shows a comparison of the anomalies plot and the sonogram of the bounced sonification. While one can see the correlation, especially the cold anomalies are not very well separated as trajectories, leading to more discontinuities than perhaps necessary.
+
+\begin{figure}
+\includegraphics[width=\textwidth]{figures/sonif4-compare-with-plot.jpg}
+\caption{Sonification 4. }
+\label{fig:sonif4-compare-with-plot}
+\end{figure}
+
+We went back to compare the anomalies based on monthly median versus mean value. The result is shown in \figref{}. It seems that although the anomalies are slightly stronger when using the median, the trajectory following works better with the mean values, which can be observed especially towards the end of the sonogram in the cold anomalies (right channel or shown on the bottom half). The bounce for the mean based sonification is uploaded here: \url{https://soundcloud.com/syssonproject/sonif-4-based-on-median-anomalies}
+
+\begin{figure}
+\includegraphics[width=\textwidth]{figures/sonif4-compare-median-mean.jpg}
+\caption{Sonification 4 using median based anomalies (left) vs. mean based anomalies (right).}
+\label{fig:sonif4-compare-median-mean}
+\end{figure}
 
 % \printbibliography
 
