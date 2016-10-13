@@ -756,6 +756,111 @@ We went back to compare the anomalies based on monthly median versus mean value.
 \label{fig:sonif4-compare-median-mean}
 \end{figure}
 
+\subsubsection*{Variants}
+
+In order to observe the rhythmic structure, it might be sufficient to actually listen only to a single altitude level, or to two altitude levels spaced apart. This was done in the following two cases:
+%
+\begin{itemize}
+\item 30 km only: https://soundcloud.com/syssonproject/sonif-4-single-altitude
+\item 24 km vs 36 km: https://soundcloud.com/syssonproject/sonif-4-dual-altitude
+\end{itemize}
+%
+
+\section{Centroid}
+
+With the reduction to the local maximum, we somehow lose information about the breadth of the anomalies. Just picking the maximum does not take into account the centre of gravity or centroid of the band surrounding it. The next idea is thus to create a weighted sum of the energies around the maximum. To demonstrate what we mean, let's take the following simplified time slice vector (cf. \Verb!code/Centroid.scala! in the experiments project):
+%
+\begin{lstlisting}[style=scala]
+val ys = Vector(0.17, 0.14, 0.35, 0.25, -0.11, -0.43, -0.38, 0.08, 0.64, 0.84, 1.00, 0.84, 0.64, 0.08, -0.38, -0.43, -0.11, 0.25, 0.35, 0.14, -0.17)
+ys.plot(discrete = true)
+\end{lstlisting}
+%
+The plot is shown in \figref{fig:centroid-test-plot}. Then an intuitive way of determining the centroid would be:
+%
+\begin{lstlisting}[style=scala]
+val bestVal   = ys.max               // 1.0
+val bestIdx   = ys.indexOf(bestVal)  // 10
+val thresh    = 0.2
+val yi        = ys.indices
+
+val beforeIdx = bestIdx - ys.take(bestIdx).reverse.indexWhere(_ < thresh) // 8
+val afterIdx  = bestIdx + ys.drop(bestIdx + 1).indexWhere(_ < thresh) // 12
+val mask      = yi.map(i => if (i >= beforeIdx && i <= afterIdx) 1 else 0)
+val inMask    = (ys zip mask).map { case (y, m) => y * m }
+val inSum     = inMask.sum // 3.96
+val wIdx      = (inMask.zipWithIndex).map { case (y, i) => y * i } .sum / inSum // 10
+\end{lstlisting}
+%
+The problem is that we cannot use collections operations such as \Verb!take! and \Verb!drop! on the server, as the number of channels (collection size) depends on the input matrix. Also higher-order functions such as \Verb!indexWhere! are not available. We have to build everything around the \Verb!ArrayMin! and \Verb!ArrayMax! UGens again. \figref{fig:centroid-synth-function} shows how this is done. Here, \Verb!isUp! is \Verb!true! for positive (hot) anomalies, and it is \Verb!false! for negative (cold) anomalies. To find the span, we calculate the reciprocal of the difference of the indices to the best-index (index of local maximum, or local minimum respectively). This we multiply with \Verb!isInvalid!, a logical signal that is high for the channels that are below the threshold and low for those above the threshold. Then using \Verb!ArrayMax! we can find the index closest to the best-index where the signal falls below the threshold. To allow cases where the signal does not fall below the threshold on either side, we are prepending the dummy zero channel (\Verb!0 +: x!), and need to take care to interpret a resulting zero index accordingly. The \Verb!Reduce.+(x)! elements sum up the channels of a signal. By multiplying with the channel indices and dividing by the total sum, we obtain the weighted index.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.5\textwidth]{figures/centroid-test-plot.png}%
+\caption{Test vector of 18 elements for centroid measurement. Threshold is 0.2}
+\label{fig:centroid-test-plot}
+\end{figure}
+
+\begin{figure}
+\begin{lstlisting}[style=scala]
+def calcIndex(ys: GE, magMax: GE, isUp: Boolean): (GE, GE) = {
+  val (bestVal, bestIdx) = if (isUp) {
+    val best = ArrayMax.kr(ys)
+    (best.value -> best.index)
+  } else {
+    val best = ArrayMin.kr(ys)
+    (best.value -> best.index)
+  }
+  val yi        = ChannelIndices(ys)
+  val isInvalid = if (isUp) ys < thresh else ys > -thresh
+  val bestDist  = (bestIdx - yi).reciprocal * isInvalid
+  val before    = ArrayMax.kr(0 +: bestDist)
+  val beforeIdx = before.index
+  val after     = ArrayMax.kr(0 +: -bestDist)
+  val afterIdx  = (after.index - 1).wrap(0, NumChannels(ys) + 1)
+  val mask      = yi >= beforeIdx & yi < afterIdx
+  val inMask    = if (isUp) ys * mask else -ys * mask
+  val inSum0    = Reduce.+(inMask)
+  val inSum     = inSum0 + (inSum0 sig_== 0) // avoid division by zero
+  val wIdx      = Reduce.+(inMask * yi) / inSum
+  val wMag      = (inSum * allValid).clip(thresh, magMax)
+    .linlin(thresh, magMax, 0, 1)
+  (wIdx, wMag)
+}
+\end{lstlisting}
+\caption{Function that calculates the centroid of an input synthesis signal.}
+\label{fig:centroid-synth-function}
+\end{figure}
+
+The result of this modified sonification is shown in \figref{fig:sonif4-vs-sonif5}. It can be seen that the weighted index version produces noticeably smoother and more steady glissandi. On the downside (?), we occasionally find short lived secondary trajectories close to the main trajectory. A fast and slow version of this new sonification are found here:
+%
+\begin{itemize}
+\item \url{https://soundcloud.com/syssonproject/sonif-5}
+\item \url{https://soundcloud.com/syssonproject/sonif-5-long}
+\end{itemize}
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/sonif4-vs-sonif5.jpg}%
+\caption{Comparison of sonification-4 -- local-max only, top half -- and sonification-5 -- using centroid or weighted index, bottom half. Left side is positive anomalies, right side is negative anomalies.}
+\label{fig:sonif4-vs-sonif5}
+\end{figure}
+
+\section{Blobs}
+
+There is ``two dimensions'' of value smear here, one is across altitudes, one is across time. So far we have only looked at the altitudes independently of neighbouring time slices. If we look at the plot again, left-hand side of \figref{fig:qbo-field-blobs}, we perceive the visual gestalt certainly as two-dimensional. An idea would be to use two-dimensional blob detection, an example of which is shown in the right-hand side of \figref{fig:qbo-field-blobs}. This picture was made using a blob detection library for Processing, apparently based on meta-balls: \url{https://www.niksula.hut.fi/~hkankaan/Homepages/metaballs.html} One could then use the blob data to ``shape'' the sound objects, calculate regression lines, etc.
+
+\begin{figure}
+\includegraphics[width=0.49\textwidth]{figures/qbo-field-magnified.jpg}%
+\hspace{0.02\textwidth}%
+\includegraphics[width=0.49\textwidth]{figures/qbo-field-blobs.jpg}
+\caption{Thinking of the anomalies as diagonal ``hoses''; left-hand side blurry plot, right-hand side with blobs detected in Processing (green is blob contour, red is blob bounding box)}
+\label{fig:qbo-field-blobs}
+\end{figure}
+
+\subsection{Formalisation}
+
+The analysis is probably impossible, certainly tedious in the synth graph, so we need a mechanism to perform it offline beforehand.
+
 % \printbibliography
 
 \end{document}
