@@ -860,6 +860,27 @@ There is ``two dimensions'' of value smear here, one is across altitudes, one is
 \subsection{Formalisation}
 
 The analysis is probably impossible, certainly tedious in the synth graph, so we need a mechanism to perform it offline beforehand.
+%
+\begin{itemize}
+\item There could be functions from \Verb!Matrix! to \Verb!Matrix!. But we don't want a persistent matrix as output. We want something like \Verb!Matrix.Key! as output. That is an in-memory object that can be fed into the aural sonification.\Verb!Matrix.Key! does not carry shape information any longer (we could investigate if we can add that), which would be needed if we allowed inter-op with the graph elements, such as \Verb!Dim(...).size!.
+\item On the other hand, we could have two systems, a second persistent one for caching, with an actual \Verb!Matrix! object at the end. But this will cause further complications in the aural sonification, because we need to convert or cast systems.
+\item From the programmer's point of view, we should have a simple DSL to write the output matrix. This will, in any case, be a NetCDF file, so we can do away with the \Verb!Matrix! abstractions in that case.
+\item We have a system for ``preparation'', i.e. for off-line rendering: \software{FScape~2}. The question is, how feasible would it be to perform the blob analysis with the existing UGens (plus I/O)? If it costs effort but is feasible, we already have a functioning framework at hand (that could be refined with more UGens at a later stage).
+\end{itemize}
+%
+Before making any decisions here, we should just write a small program to do the blob detection as we imagine it, to see if the effort is worth it and the approach works. We can probably run ``global'' block extraction, leading to the green contours in \figref{fig:qbo-field-blobs}, and then ``joining'' vertical lines per blob, so that we obtain a one-dimensional signal (low/high margin plus centroid, possibly also horizontal ``width'' if we join horizontal lines as well; thus four or five scalar components over time).
+
+Sketch of algorithm:
+%
+\begin{itemize}
+\item Scan time/altitude segment (index latitude, index or average longitude).
+\item Apply blob analysis (globally); remove too small blobs etc.
+\item Reformulate blobs to be working as four/five time-based signals
+\item Decide on the number of ``voices'' needed. This could be one axis of the resulting matrix?
+\item Write out as matrix.
+\end{itemize}
+%
+Look into the \software{Turbulence} code, because there was at some point a sort of blob detection in use: \url{https://github.com/iem-projects/sysson/blob/turbulence/src/main/scala/at/iem/sysson/turbulence/DataSets.scala#L162} -- a blob here is a rectangle with latitude and longitude extent, so that doesn't help much.
 
 % \printbibliography
 
