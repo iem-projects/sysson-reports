@@ -882,6 +882,16 @@ Sketch of algorithm:
 %
 Look into the \software{Turbulence} code, because there was at some point a sort of blob detection in use: \url{https://github.com/iem-projects/sysson/blob/turbulence/src/main/scala/at/iem/sysson/turbulence/DataSets.scala#L162} -- a blob here is a rectangle with latitude and longitude extent, so that doesn't help much.
 
+After tuning the blob detection algorithm used in \figref{fig:qbo-field-blobs}, a library for Processing written by Julien Gachadoat, one can get to a rather good separation, as shown in \figref{fig:qbo-blobs-experiment}. There is still a slight problem with horizontal disconnection if months ``fall out'', which might be solved with a bit of horizontal blurring.
+
+\begin{figure}
+\includegraphics[width=\textwidth]{figures/qbo-blobs-experiment.jpg}
+\caption{Taking a blob detection algorithm for Processing, and configuring it to work nicely with the anomalies data. Only hot anomalies are used here.}
+\label{fig:qbo-blobs-experiment}
+\end{figure}
+
+The next step is to turn these contours, which are currently polylines, into something that can be used in the sound synthesis process. One idea is to ``scan'' the blobs with horizontal and vertical ``boxes'' and then take the bounding boxes of the intersection shape, which should give us for every time step two boxes---a horizontal ``extent'' and a vertical ``extent''. The other alternative is to allow for one blob to be split into multiple voices.
+
 % \printbibliography
 
 \end{document}
