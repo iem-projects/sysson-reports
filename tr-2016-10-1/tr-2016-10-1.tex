@@ -885,12 +885,38 @@ Look into the \software{Turbulence} code, because there was at some point a sort
 After tuning the blob detection algorithm used in \figref{fig:qbo-field-blobs}, a library for Processing written by Julien Gachadoat, one can get to a rather good separation, as shown in \figref{fig:qbo-blobs-experiment}. There is still a slight problem with horizontal disconnection if months ``fall out'', which might be solved with a bit of horizontal blurring.
 
 \begin{figure}
+\centering
+\begin{subfigure}[b]{\textwidth}%
 \includegraphics[width=\textwidth]{figures/qbo-blobs-experiment.jpg}
 \caption{Taking a blob detection algorithm for Processing, and configuring it to work nicely with the anomalies data. Only hot anomalies are used here.}
 \label{fig:qbo-blobs-experiment}
+\end{subfigure}
+%
+\begin{subfigure}[b]{\textwidth}%
+\includegraphics[width=\textwidth]{figures/qbo-blobs-experiment-bounds.png}
+\caption{Bounding boxes after time-slice by time-slice intersection of the blogs with a sliding rectangle. Now, for each time frame, information is reduced to the (low, high) interval.}
+\label{fig:qbo-blobs-experiment-bounds}
+\end{subfigure}
 \end{figure}
+%
 
-The next step is to turn these contours, which are currently polylines, into something that can be used in the sound synthesis process. One idea is to ``scan'' the blobs with horizontal and vertical ``boxes'' and then take the bounding boxes of the intersection shape, which should give us for every time step two boxes---a horizontal ``extent'' and a vertical ``extent''. The other alternative is to allow for one blob to be split into multiple voices.
+The next step is to turn these contours, which are currently polylines, into something that can be used in the sound synthesis process. One idea is to ``scan'' the blobs with horizontal and vertical ``boxes'' and then take the bounding boxes of the intersection shape, which should give us for every time step two boxes---a horizontal ``extent'' and a vertical ``extent''. The other alternative is to allow for one blob to be split into multiple voices. \figref{fig:qbo-blobs-experiment-bounds} shows the blobs after finding an upper/lower bound per time slice.
+
+We can now deduce multiple new parameters for the sound model. For example, indicated in red in the figure is the ``area'' found for a given time-slice (indicated by a blue line), moving up an down the upper/lower bound and extending as far as possible to the left and right. From this area we might calculate the ``energy'' (sum of the matrix cells), the area size, the area bounds, etc.
+
+Here is an example format for a matrix to be written: Matrix shape is \Verb![numVoices * numFeatures][time]! where \Verb!numVoices! is the maximum number of blobs that overlap at a given moment in time (two in the plotted case). There are nine features:
+%
+\begin{itemize}
+\item in-blob (zero or one; for zero, we ignore the vector/voice)
+\item alt-hi (high bound altitude)
+\item alt-lo (low bound altitude)
+\item centroid(centroid index altitude)
+\item v-energy (vertically weighted energy)
+\item box-energy (as discussed for \figref{fig:qbo-blobs-experiment-bounds}).
+\item box-width
+\item blob-total-height
+\item blob-total-width
+\end{itemize}
 
 % \printbibliography
 
