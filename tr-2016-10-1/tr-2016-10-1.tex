@@ -918,6 +918,23 @@ Here is an example format for a matrix to be written: Matrix shape is \Verb![num
 \item blob-total-width
 \end{itemize}
 
+We have conducted an experiment at writing such a blob matrix with a modified version of SysSon's \Verb!NetCdfFileUtil.transform! function that allows the variable to be transformed to have undergone reductions. This is necessary because the blob detection essentially depends on the selected sub-matrix, so we want to make sure only those altitudes are going inside that produce useful blobs. Eventually, it will have to be decided, whether we calculate blobs on the fly, i.e. per latitude and longitude index, or as a batch, i.e. for all latitude and longitude indices. In the experiment, we have also restricted the latitude dimension to the useful indices around the equator.
+
+As with the voice trajectory experiment, we have to decide in advance on the maximum number of trajectories traced. This corresponds to the maximum number of concurrent blobs. In the reasonable areas this should be no more than two or three. For each trajectory we allocate a sub-vector of features for the ongoing blob. \figref{fig:qbo-blobs-matrix-out} shows a ``plot'' of a file thus generated. The plot of course makes little sense because the vector components of each blob are in general unrelated, and thus there is no useful scale for the colour palette. Still, what can be seen is how each blob appears as a cluster of related data over time, we see the four allocated blob slots vertically, with at most three used around the middle of the time axis.
+
+The sound synthesis patch then must decompose this matrix vertically into the different trajectories and blob components, and subject it to the voice tracking mechanism discussed earlier. This is now very simple, because we have a dedicated blob-identifier as part of the vector (it will be positive for a valid blob, and zero for an unoccupied slot). We \emph{do not} pre-calculate the voice allocation, because it will in general depend on user and real-time parameters such as envelope release time. Thus, again we will allocate for example twice as many voices and there are allocated trajectories.
+
+In order to verify the correctness of the output, we develop a simple table view for matrix data within the \software{SysSon} software.
+
+\begin{figure}
+\includegraphics[width=\textwidth]{figures/qbo-blobs-matrix-out.png}
+\caption{``Plot'' of a generated blob matrix.}
+\label{fig:qbo-blobs-matrix-out}
+\end{figure}
+%
+
+\todo{continue here}
+
 % \printbibliography
 
 \end{document}
