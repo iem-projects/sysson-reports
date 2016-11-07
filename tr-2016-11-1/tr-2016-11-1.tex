@@ -235,6 +235,73 @@ def mkOsc(freq: GE, amt: GE): GE = {
 \end{figure}
 %
 
+\subsection{``Importing'' Timbres From a GA Process}
+
+We have been recently experimenting with the algorithmic production of sound synthesis structures, by using genetic programming of synth graphs based on a target sound and a fitness function that correlates the spectra and loudness contours of target sound and individuals in the GP populations. While this does not yield sounds close to the target sound in reasonable time and number of iterations, it has proven to be a very useful generator of interesting timbres.
+
+Therefore, it seems useful to try and ``import'' timbres produced in this evolutionary algorithm to SysSon. There is a simple source code generator for the found sound structures, and the work is then to select a sound, unclutter the source code from ``dead'' branches (e.g. those that essentially produce silence or components that one wants to remove from the timbre), and finally identify parameters that one wants to control (e.g. fundamental frequency). The GP comes up with interesting solutions for modulating timbre, such as adding signals and then clipping the sum, producing thus co-modulations.
+
+\figref{fig:code-shaper-timbre2} shows the result of such an imported sound, with the sonogram for applying it in the usual QBO setup shown in \figref{fig:sono-shaper-timbre2}. A bounce of this sound can be found at \url{https://soundcloud.com/syssonproject/blob-shaper-timbre2-161107}.
+
+\begin{figure}[b]
+\begin{lstlisting}[style=scala]
+
+// ---- oscillator ----
+
+def mkOsc1(freq: GE): GE = SinOsc.ar(freq) * 0.75
+
+def mkOsc2(freq: GE): GE = {
+  val freq_4          = freq
+  
+  val amt_1           = 0.1
+  val off_1           = 0.7
+  val amt_2           = 1.0
+  val freq_3          = 0.6 // adds irregularity
+  val freq_5          = (freq_4 * 2).min(18000) // lpf
+  
+  val lFCub_0         = LFCub.ar(freq = freq_3, iphase = 0.660289)
+  val min_7           = lFCub_0.min(0.0)
+  val lFDNoise0       = LFDNoise0.ar(freq_3) + off_1
+  val gbmanL          = GbmanL.ar(freq = freq_4, xi = 383.95047, yi = 383.95047)
+  val min_33          = gbmanL min 0.36345935
+  val blip            = Blip.ar(freq = freq_4, numHarm = 1.0)
+  val plus            = blip + 0.1321
+  val mix             = Mix(Seq[GE](
+      lFDNoise0 * amt_1, 
+      min_7 * amt_2, 
+      min_33, 
+      plus
+  ))
+  val sig0 = LeakDC.ar(mix.clip2(1)) * 0.75
+  val sig  = LPF.ar(sig0, freq_5)
+  sig
+}
+
+def mkOsc(freq: GE, amt: GE): GE = {
+  val numOscs = 2
+  val oscs = Seq(mkOsc1(freq), mkOsc2(freq))
+  
+  val idx  = amt.linlin(0, 1, 0, numOscs - 1)
+  val idxF = idx.floor
+  val idxC = idx.ceil
+  val wC   = idx % 1.0
+  val wF   = 1.0 - wC
+  
+  val osc  = Select.ar(idxF, oscs) * wF + Select.ar(idxC, oscs) * wC
+  osc
+}
+\end{lstlisting}
+\caption{Oscillator mix by fading between sine and complex timbre.}
+\label{fig:code-shaper-timbre2}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.75\textwidth]{figures/blob-shaper-timbre2-161106.png}
+\caption{Sonogram of QBO sonification with fading between sine and complex timbre.}
+\label{fig:sono-shaper-timbre2}
+\end{figure}
+
 \todo{continue here}
 
 % \printbibliography
