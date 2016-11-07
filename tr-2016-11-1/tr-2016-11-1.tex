@@ -302,7 +302,122 @@ def mkOsc(freq: GE, amt: GE): GE = {
 \label{fig:sono-shaper-timbre2}
 \end{figure}
 
-\todo{continue here}
+\figref{fig:code-shaper-timbre3} shows the result of another such imported sound, with the sonogram for applying it in the usual QBO setup shown in \figref{fig:sono-shaper-timbre3}. A bounce of this sound can be found at \url{https://soundcloud.com/syssonproject/blob-shaper-timbre3-161107}.
+
+\begin{figure}[b]
+\begin{lstlisting}[style=scala]
+def mkOsc1(freq: GE): GE = SinOsc.ar(freq) * 0.75
+
+def mkOsc3(freq: GE): GE = {
+  val freq1 = freq
+  val amt1  = 0.125 // modulation
+  val freq2 = 13.0
+  val freq3 = (freq1 * 3.0).min(18000)
+  
+  val gbmanL_0        = GbmanL.ar(freq = freq1, xi = 383.95047, yi = 383.95047)
+  val blip            = Blip.ar(freq = freq1, numHarm = 1)
+  val min_3           = -0.058492452
+  val difsqr          = blip difsqr min_3
+  val ring2           = gbmanL_0 ring2 difsqr
+  val min_4           = 0.660289 min ring2
+  val min_5           = min_4 min -0.058492452
+  val b               = gbmanL_0.min(0.0)
+  val min_6           = b min gbmanL_0
+  val a               = min_4 min min_6
+  val decayTime_1_X   = QuadN.ar(freq = 0.660289, a = a, b = b, c = min_4, xi = min_5)
+  val decayTime_1 = decayTime_1_X.clip2(770)
+  val in_3            = LeakDC.ar(decayTime_1)
+  val min_10          = min_6.min(0.0)
+  val in_4            = LeakDC.ar(min_10)
+  val combL           = CombL.ar(in_4, maxDelayTime = 0.0, 
+    delayTime = 0.0, decayTime = 0)
+  val min_11          = combL min min_6
+  val min_13          = min_11 min min_6
+  val min_15          = min_5 min min_13
+  val min_16          = min_15.min(0.0)
+  val in_6            = LeakDC.ar(difsqr)
+  val allpassC        = AllpassC.ar(in_6, maxDelayTime = 0.01,
+    delayTime = 0.01, decayTime = decayTime_1)
+  
+  val mix0 = min_16 * amt1 + allpassC
+  val mix = LPF.ar(mix0, freq3)
+  LeakDC.ar(mix.clip2(1)) * 0.75
+}  
+
+def mkOsc(freq: GE, amt: GE): GE = {
+  val numOscs = 2
+  val osc1 = mkOsc1(freq)
+  val osc3 = mkOsc3(freq)
+  val oscs = Seq(osc1, osc1 * 0.5 + osc3)
+  val idx  = amt.linlin(0, 1, 0, numOscs - 1)
+  val idxF = idx.floor
+  val idxC = idx.ceil
+  val wC   = idx % 1.0
+  val wF   = 1.0 - wC
+  val osc  = Select.ar(idxF, oscs) * wF + Select.ar(idxC, oscs) * wC
+  osc
+}
+\end{lstlisting}
+\caption{Oscillator mix -- timbre 3.}
+\label{fig:code-shaper-timbre3}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/blob-shaper-timbre3-161107.png}
+\caption{Sonogram of QBO sonification with fading between sine and complex timbre.}
+\label{fig:sono-shaper-timbre3}
+\end{figure}
+
+\figref{fig:code-shaper-timbre4} shows the result of another such imported sound, with the sonogram for applying it in the usual QBO setup shown in \figref{fig:sono-shaper-timbre4}. A bounce of this sound can be found at \url{https://soundcloud.com/syssonproject/blob-shaper-timbre4-161107}. Here we fade between three different mixes and with wider overlap, resulting in less discernible ``stages'', but perhaps also leading to more difficulties in ``categorising'' the sound.
+
+\begin{figure}[b]
+\begin{lstlisting}[style=scala]
+def mkOsc4(freq: GE): GE = {
+  val freq3 = freq
+  val freq2 = 3615.845
+  val freq1 = 10.285505 // modultion freq
+  val amt1  = 0.2 // modulation depth
+   
+  val saw_0           = Saw.ar(freq1) * amt1
+  val a_2             = BrownNoise.ar.linlin(-1, 1, 0.3, 0.85)
+  val latoocarfianL   = LatoocarfianL.ar(freq = freq2, a = a_2, b = 1.5, c = 0.5, d = 0.0,
+    xi = -1.8525897, yi = saw_0)
+  val ratio = freq3 / (2.0 * 349.2)
+  val shift            = PitchShift.ar(latoocarfianL, pitchRatio = ratio) * 1.5
+  val mix = Resonz.ar(shift, freq3 * 1.1) * 1.41
+  mix
+}
+  
+def mkOsc(freq: GE, amt: GE): GE = {
+  val numOscs = 3
+  val osc1 = mkOsc1(freq)
+  val osc2 = mkOsc2(freq)
+  val osc3 = mkOsc3(freq)
+  val osc4 = mkOsc4(freq)
+  
+  val mix1 = osc1
+  val mix2 = osc1 * 0.5 + osc2 * 0.5
+  val mix3 = osc4 + osc3 * 0.33
+  
+  val idx  = amt.linlin(0, 1, 0, numOscs - 1)
+  val mix1w = mix1 * (1.4 - idx.absdif(0).clip(0, 1.4).sqrt)
+  val mix2w = mix2 * (1.4 - idx.absdif(1).clip(0, 1.4).sqrt)
+  val mix3w = mix3 * (1.4 - idx.absdif(2).clip(0, 1.4).sqrt)
+  val osc =  mix1w + mix2w + mix3w
+  osc * 0.7
+}
+\end{lstlisting}
+\caption{Oscillator mix -- timbre 4 (functions 'mkOsc1', 'mkOsc2', 'mkOsc3' as before).}
+\label{fig:code-shaper-timbre4}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/blob-shaper-timbre4-161107.png}
+\caption{Sonogram of QBO sonification with fading between sine and complex timbre.}
+\label{fig:sono-shaper-timbre4}
+\end{figure}
 
 % \printbibliography
 
