@@ -419,6 +419,99 @@ def mkOsc(freq: GE, amt: GE): GE = {
 \label{fig:sono-shaper-timbre4}
 \end{figure}
 
+\subsection{Evaluation}
+
+After refinements, the sounds chosen for the meeting on 10-Nov-2016 have been uploaded to \url{https://soundcloud.com/syssonproject/sets/wegc_161110-neu}. Descriptions:
+
+\paragraph{QBO Blob - Timbre1 (Just Sine)}:
+Anomalies based on \Verb!"5x30-climatology_2001-05-01_2016-05-01_ta"!; time slice = 0 to 179 (2001-05-16 12:00:00Z to 2016-04-16 00:00:00Z); lon = 75 deg W; lat = 2.5 deg S. Using blob analysis of altitudes 20 km to 40 km.
+%
+\begin{itemize}
+\item time is mapped to time (2, 6, and 12 months per second)
+\item altitude is mapped to pitch (20 km = 300 Hz, 40 km = 800 Hz).
+\item only hot anomalies are filtered
+\item frequency is determined as centroid (weighted mean) of altitude bands within blob
+\item strength of centroid band is indicated by amplitude of sound generator
+\end{itemize}
+
+\paragraph{QBO Local - Max Trajectory}:
+Anomalies based on \Verb!"5x30-climatology_2001-05-01_2016-05-01_ta"!; time slice = 0 to 179 (2001-05-16 12:00:00Z to 2016-04-16 00:00:00Z); lon = 75 deg W; lat = 2.5 deg S. Using one oscillator per signum with frequency corresponding to altitude between 21 km to 39 km that exhibits the strongest anomaly.
+%
+\begin{itemize}
+\item time is mapped to time (2, 6, 12 months per second)
+\item altitude is mapped to pitch (21 km = 200 Hz, 39 km = 4 kHz).
+\item hot anomalies are projected onto the left channel
+\item cold anomalies are projected onto the right channel (using the same frequency mapping as for hot anomalies)
+\item frequency is determined as altitude band with maximum anomaly
+\item strength of maximum band is indicated by amplitude of oscillator
+\end{itemize}
+
+\paragraph{QBO Cluster}:
+Anomalies based on \Verb!"5x30-climatology_2001-05-01_2016-05-01_ta"!; time slice = 0 to 179 (2001-05-16 12:00:00Z to 2016-04-16 00:00:00Z); lon = 75 deg W; lat = 2.5 deg S. Using oscillator bank with one oscillator per altitude, filtering only hot anomalies.
+%
+\begin{itemize}
+\item time is mapped to time (2, 6, 12 months per second)
+\item altitude is mapped to a fixed pitch (20 km = 200 Hz, 40 km = 4 kHz; logarithmically) for each oscillator (N altitude bands = N oscillators).
+\item hot anomalies of >1 degrees are filtered
+\item strength of each oscillator reflects anomaly strength from threshold
+(1 degree; minimum amplitude) to a given maximum of 8 degrees (maximum amplitude).
+\end{itemize}
+
+\paragraph{QBO Blob - Timbre1}:
+Anomalies based on \Verb!"5x30-climatology_2001-05-01_2016-05-01_ta"!; time slice = 0 to 179 (2001-05-16 12:00:00Z to 2016-04-16 00:00:00Z); lon = 75 deg W; lat = 2.5 deg S. Using blob analysis of altitudes 20 km to 40 km.
+%
+\begin{itemize}
+\item time is mapped to time (2, 6, 12 months per second)
+\item altitude is mapped to pitch (20 km = 300 Hz, 40 km = 800 Hz).
+\item only hot anomalies are filtered
+\item fundamental frequency is determined as centroid (weighted mean) of altitude bands within blob
+\item timbre (richness is overtones or brightness of sound) is determined by blob height (span from low to high altitudes including the centroid and exceeding temperature threshold)
+\item strength of centroid band is indicated by amplitude of sound generator
+\end{itemize}
+
+\paragraph{QBO Blob - Timbre2 - 0.5 Factor}:
+Anomalies based on \Verb!"5x30-climatology_2001-05-01_2016-05-01_ta"!; time slice = 0 to 179 (2001-05-16 12:00:00Z to 2016-04-16 00:00:00Z); lon = 75 deg W; lat = 2.5 deg S. Using blob analysis of altitudes 20 km to 40 km.
+%
+\begin{itemize}
+\item time is mapped to time (6 months per second)
+\item altitude is mapped to pitch (20 km = 300 Hz, 40 km = 800 Hz).
+\item only hot anomalies are filtered
+\item fundamental frequency is determined as centroid (weighted mean) of altitude bands within blob
+\item timbre is determined by blob height (span from low to high altitudes including the centroid and exceeding temperature threshold): narrow width is audible as a "plain" sine tone, higher widths are indicates by an additional "rough" timbre in a frequency register around three octaves below the sine indicating the centroid.
+\item strength of centroid band is indicated by amplitude of sound generator
+\end{itemize}
+
+\paragraph{QBO Blob - Timbre2 - 2.0 Factor}:
+Anomalies based on \Verb!"5x30-climatology_2001-05-01_2016-05-01_ta"!; time slice = 0 to 179 (2001-05-16 12:00:00Z to 2016-04-16 00:00:00Z); lon = 75 deg W; lat = 2.5 deg S. Using blob analysis of altitudes 20 km to 40 km.
+%
+\begin{itemize}
+\item time is mapped to time (6 months per second)
+\item altitude is mapped to pitch (20 km = 300 Hz, 40 km = 800 Hz).
+\item only hot anomalies are filtered
+\item fundamental frequency is determined as centroid (weighted mean) of altitude bands within blob
+\item timbre is determined by blob height (span from low to high altitudes including the centroid and exceeding temperature threshold): narrow width is audible as a "plain" sine tone, higher widths are indicates by an additional "rough" timbre in the same frequency register as the sine indicating the centroid.
+\item strength of centroid band is indicated by amplitude of sound generator
+\end{itemize}
+
+\paragraph{QBO Hot - Cold Figurative}:
+Anomalies based on \Verb!"5x30-climatology_2001-05-01_2016-05-01_ta"!; time slice = 0 to 179 (2001-05-16 12:00:00Z to 2016-04-16 00:00:00Z); lon = 75 deg W; lat = 2.5 deg S. Using one sound generator per signum with frequency corresponding to altitude between 21 km to 39 km that exhibits the strongest anomaly.
+%
+\begin{itemize}
+\item time is mapped to time (6 months per second)
+\item altitude is mapped to pitch.
+\item hot anomalies are projected onto the left channel, mapping
+the altitude carrying maximum anomaly, between 21 km and 39 km
+into the frequency range 300 to 600 Hz (logarithmically), using
+a slightly noisy and sonorous timbre.
+\item cold anomalies are projected onto the right channel, mapping
+the altitude carrying maximum anomaly, between 21 km and 39 km
+into the frequency range 1 to 2 kHz (logarithmically), using
+a crispy and crackling timbre.
+\item strength of maximum band is indicated by amplitude of oscillator
+\end{itemize}
+
+\paragraph{Findings:} The amplitude mapping to indicate the strength of the anomalies is rather weak. It might be a more important features, and thus the next step could be to reflect the magnitude of the anomalies more prominently, e.g. in the timbre as well. The separate timbres in the ``hot--cold'' patch are easy to distinguish when played simultaneously. It might still be useful to see if we can use the same frequency register and find timbres or other features to still tell them clearly apart. Cluster: There seem to be beatings in the sound that could stem not from the actual data but a phase-related amplitude modulation. A possible work-around might be to slightly randomise the frequencies. Andrea pointed out that some ``anomalies of anomalies'' are happening right now in 2016, the should be reflected in data starting from this spring/summer, we will see when we get updated data (current stop is April 2016).
+
 % \printbibliography
 
 \end{document}

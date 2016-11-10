@@ -1,5 +1,6 @@
 #Mellite Workspace Meta-Info
-#Fri Oct 21 12:12:36 CEST 2016
-mellite-version=2.6.1
-soundprocesses-version=3.8.1
+#Tue Nov 08 17:57:59 CET 2016
+mellite-version=2.7.0
+soundprocesses-version=3.9.0
 type=ephemeral
+sysson-version=1.11.0
