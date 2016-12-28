@@ -21,6 +21,9 @@
 \usepackage{graphicx}
 \usepackage{subcaption}
 
+% cf. https://tex.stackexchange.com/questions/58713
+\usepackage{enumitem}
+
 \usepackage[utf8]{inputenc}
 \usepackage[lf]{venturis} %% lf option gives lining figures as default; 
 \usepackage[T1]{fontenc}
@@ -223,5 +226,81 @@ This section tries to answer the question of the project report: ``In the ongoin
 - exchange with guest researchers in sonification at IEM (May 2017)
 - where feasible: implementation of further software milestones (matrix pre-processing DSL; interaction control / UI)
 \end{itemize}
+
+\section{Matrix Pre-Processing DSL}
+
+The first use case of this proposal is to be able to integrate back into the main project the blob analysis that was run as an individual routine in the \url{https://github.com/iem-projects/sysson-experiments} project. That is, we want to define a number of steps from \Verb!val z = Var("blob")! to \Verb!val x = Var("anom");! \linebreak\Verb!val z = Blobs(z, ...)! that make it possible to express this transformation from within a sonification patch.
+
+Relevant questions and issues:
+%
+\begin{itemize}
+\item We should plug into the existing \Verb!buildAsyncInput! mechanism of \Verb!AuralProc!.
+\item We should, in turn, plug that into a mechanism that give UI feedback on asynchronous renderings taking place
+\item We should evaluate whether we can use \software{FScape-next} as a host architecture for specific matrix based rendering UGens.
+\item We need to find a way to cache the matrices rendered this way
+\item Related to the caching, we need to find a way to avoid having to recalculate the entire blob matrices when for example the time axis slice shrinks. I think this is already partly addressed by the current matrix-to-audio-file caching?
+\end{itemize}
+
+\subsection*{Analysis}
+The object \Verb!AnomaliesBlobs! in the experiments project was defined in terms of \linebreak\Verb!NetCdfFileUtil.transformSelection!. This poses the problem of how to handle the dimensional meta-data inside the constraints of the rather flat data containers available in \software{FScape-next}.
+
+The input matrix here has [time][lon][lat][alt] (perhaps in other order), the transform function is called with in-dims = [time, altitudes] and out-dims = [create(time), keep(longitudes), keep(latitudes), create(blob-data)]. Here is a first sketch of a pseudo-program:
+%
+\begin{lstlisting}[style=scala]
+val vIn    = Var("anom") // or `MatrixIn`?
+val dT     = Dim(vIn, "time")
+val dAlt   = Dim(vIn, "altitudes")
+// instead of massive multi-channel expansison, we 'linearise'
+// the data here similar to the NetCdfFileUtil approach
+val in     = vIn.playLinear(dT, dAlt) // or `dAlt, dT`?
+val thresh = (in - thresh).max(0)
+val blobs  = Blobs(in = thresh, rows = dAlt.size, columns = dT.size, smooth = ???)
+MatrixOut(key = "blobs", in = blobs, dims = ???)
+\end{lstlisting}
+%
+Note that \Verb!playLinear! (or whatever it will be called) could also be interesting for the real-time synth-graph definition.
+
+From this pseudo-program, the follow-up questions and issues are:
+%
+\begin{enumerate}
+\item How do we wire this up with the real-time synth graph patch? We could define something like \Verb!MatrixIn(key = "blob")! Where at key `blob' in the attribute map, we find the above FScape program.
+\item \label{enum:fscape-matrix} Or, at key `blob', we find instead a \Verb!Matrix[S]! and we extend the matrix type by one backed by an FScape program.
+\item How do we now see the logical dimensions `time' and `altitudes' in the UI scanning process? We cannot scan an attribute map to find possibly used FScape programs that define matrices. We could require that these dimensions are redefined in the synth-graph object.
+\item An alternative, theoretically, would be to embed the offline FScape processing code inside the main synth-graph function. But this will be messy with the change of imports inside the FScape function (among other things).
+\item We should be able to refer to other patches in the same manner. For example, the above program could depend on another program that calculates the anomalies ad-hoc.
+\end{enumerate}
+%
+Item \ref{enum:fscape-matrix} could be independently realised at some point to create ``lazy'' transformed matrices. A counter-argument to this is that all ``normal'' expressions evaluate reasonably fast and synchronous, whereas this would introduce an asynchronous object which therefore is not available at all times. One could also imagine an \Verb!AudioCue.Obj[S]! that is backed by rendering through FScape, this would constitute a similar problem/challenge.
+
+Further thoughts:
+%
+\begin{itemize}
+\item We should keep other use cases in mind, for which methods on \Verb!Var! or \Verb!Dim! are not feasible or for which they would explode the number of pseudo UGens. For instance: Calculating the maximum and minimum of a matrix selection. This again raises the question of caching the value. Pseudo-program:
+%
+\begin{lstlisting}[style=scala]
+val vIn    = Var("anom") // or `MatrixIn`?
+val in     = vIn.playLinear()
+val min    = RunningMin(in).last
+val max    = RunningMax(in).last
+ScalarOut(key = "min", in = min)
+ScalarOut(key = "max", in = max)
+\end{lstlisting}
+%
+\item Now, since these programs can emit more than one thing, e.g. two different scalars in the previous example, or one or two matrices in the former example---it seems not smart to place an \Verb!FScape! object directly in the attribute map of the main sonification patch. How do we communicate the ``output key''? We could of course specify two keys, like \Verb!MatrixIn(attr = "program", slot = "blobs")!. But it adds some confusion. If we think of the analogy of \Verb!ScanIn!, then we do not place a \Verb!Proc! directly in the sink's attribute map, but an \Verb!Output! instance instead.
+
+\item While \Verb!Output! instances aren't exactly pretty, they have an advantage where we cannot easily specify a secondary key; for example, when multiple output instances are grouped together in a \Verb!Folder!.
+Can we think of a similar scenario for FScape? There seem to be more differences than similarities:
+%
+\begin{itemize}
+\item We have already defined two entirely different types of data coming out of a patch: A matrix, and a scalar value. And there would most certainly also be the ordinary sound file.
+\item There is no equivalent for \Verb!AuralObj!, i.e. a "black-box" with \Verb!play! functionality.
+\end{itemize}
+\end{itemize}
+%
+This all touches on the question of having higher-kinded types in \software{Sound\,Processes}, such as \Verb!Option[A]!, or \Verb!Future[A]!, or \Verb!Output[A]!. This is not a viable endeavour with the given resources now. We can of course always ``erase'' type information, so an FScape \Verb!Output! would be rather opaque. Or it carries the type-ID of the value produced?
+
+Let's start over from the other side---the caching mechanism. The most precise definition would look at the sub-tree from the \Verb!ScalarOut! or \Verb!MatrixOut! object, and ``flatten'' all arguments on the way. For example, if we have a \Verb!MatrixIn! on the way, we would have to flatten that to a number of primitive values, looking up the key in the attribute map, perhaps finding a data-source, mapping that to a file name etc. In other words, a very complicated process. If we use the existing file-caching library, then this flat representation must also be compact and serialisable. The thing could really explore into the most generic caching mechanism, for example if one imagines that an FScape patch takes a timeline-bounce as input. Then what happens with synth-graph containing RNG based UGens?
+
+A simpler approach is to put the burden of the correct caching key on the programmer, i.e. by requiring a \Verb!ScalarOut(key = "key", value = runMax.last, cache = matIn)!.
 
 \end{document}
