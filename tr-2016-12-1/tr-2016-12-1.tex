@@ -303,4 +303,24 @@ Let's start over from the other side---the caching mechanism. The most precise d
 
 A simpler approach is to put the burden of the correct caching key on the programmer, i.e. by requiring a \Verb!ScalarOut(key = "key", value = runMax.last, cache = matIn)!.
 
+\subsection*{\centering *}
+
+What would an \Verb!FScape.Output! look like?
+%
+\begin{lstlisting}[style=scala]
+trait Output[S <: Sys[S]] {
+  def fscape: FScape[S]
+  def key   : String
+  def tpe   : Obj.Type
+  // def tpeID: Int
+  def value(implicit tx: S#Tx): Option[Obj[S]]  
+}
+\end{lstlisting}
+%
+Then the optional value would appear and disappear as the program is started (UGens expanded) and completed. What if we run the program multiple times concurrently? There is no problem here because cache is transactional. We could add \Verb!Publisher! to \Verb!Output! if one wants to track the appearance and disappearance of the value.
+
+The only sensitive place to calculate the cache key is from within the graph function. An easy solution could be to rely on the \Verb!requestAttribute! calls in UGen expansions. Additionally, we must track the request of RNGs, and if they happen, add the seed to the cache key. This simply algorithm can only produce false cache invalidations but no false cache verifications. Additionally, when the graph function variable is set, the cache must be cleared.
+
+For matrices, we would add something similar to \Verb!requestAttribute!, and there we could add the information about removal of dimensional reductions etc. so that we construct indeed a valid cache key.
+
 \end{document}
