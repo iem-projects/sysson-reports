@@ -179,7 +179,66 @@
 \selectlanguage{UKenglish}
 \thispagestyle{empty}
 \newpage
-\section{}
+\section{Adding an Offline Preprocessing Stage}
+
+The current workflow has been to experiment with matrix preprocessing directly in the IntelliJ IDE and outside of Mellite/SysSon. This is fine, because the IDE is much more powerful, and we have easier access to some of the utilities. However, the problem arises that we will need to make the results of these experiments available inside SysSon if we want to eventually allow the users to apply particular, newly developed preprocessing steps. We have done so with a separate menu-item to calculate anomalies, for example. We would now need to add another item for analysing the blobs. Obviously, this is not a scalable approach.
+
+In the summer of 2016, I began to implement the next-generation FScape software, a toolkit for musical signal processing, using a UGen graph approach similar to ScalaCollider, but running offline. The back-end architecture uses the Akka-Stream framework, while the front-end API is very similar to ScalaCollider. This new FScape 2.x is already stable enough to use, as was demonstrated in various audio- and video-installations last year. Furthermore, it has a basic integration with SoundProcesses now. It is therefore an obvious choice to extend FScape with SysSon-specific UGens. A possible drawback is that the streams are weakly typed one dimensional signals (although channels can be bundled). There are a number of two-dimensional matrix and image processing UGens, but it requires that row size or width information must be explicitly passed into the respective UGens. Nevertheless, we estimate that it will be possible to implement the required UGens for SysSon matrices this way.
+
+\subsection{Implementation Steps}
+
+We have collected the required steps for a full implementation for processing matrices offline in SysSon below. As of January 26, the first five steps have been completed.
+
+\begin{enumerate}
+\item enhance SoundProcesses by "lazily" calculated objects
+\item implement such a lazy object interface for FScape output
+\item implement a caching mechanism for these objects
+\item implement a simple SysSon matrix reader in FScape
+\item make \verb!Sonification! instance matrices available in FScape
+\item add commonly required meta data UGens, such as rank, size, dimensional information
+\item add dimensional operators, such as transposition
+\item add the possibility to \emph{output} matrices from FScape
+\item make it possible to use these cached matrices as input to the real-time sonification
+\item add UGens necessary to complete existing processes (anomalies, blobs)
+\end{enumerate}
+
+\subsubsection{Lazily Calculated Objects}
+
+\todo{}
+
+\subsubsection{Lazily Objects in FScape}
+
+\todo{}
+
+\subsubsection{Caching Objects}
+
+\todo{}
+
+\subsubsection{Simple SysSon Matrix Reader UGen}
+
+\todo{}
+
+\subsubsection{Accessing Sonification Instances}
+
+\todo{}
+
+\subsubsection{Meta Data UGens}
+
+\todo{}
+
+\subsubsection{Dimensional Operators}
+
+\todo{}
+
+\subsubsection{Matrix Output}
+
+\todo{}
+
+\subsubsection{Matrix Linkage from Offline to Real-Time}
+
+\todo{}
+
+\subsubsection{Implementing Anomalies and Blobs}
 
 \todo{}
 
