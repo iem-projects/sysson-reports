@@ -37,7 +37,7 @@
 \clubpenalty10000
 
 \title{The SysSon Platform}
-\subtitle{Technical Report TR-2017-01-1\\Institute of Electronic Music and Acoustics, Graz\\(Status: in progress)}
+\subtitle{Technical Report TR-2017-01-1\\Institute of Electronic Music and Acoustics, Graz\\(Status: completed)}
 \author{Hanns Holger Rutz}
 % \date{09-Feb-2016}
 \date{January 2017}
@@ -236,9 +236,316 @@ A bit of complexity is added by the fact that we now must support \Verb!Gen! in 
 
 \subsubsection{Simple SysSon Matrix Reader UGen}
 
-\todo{}
+We have implemented new UGens for \software{FScape}, similar to the ones already available in 
+\software{ScalaCollider}. \Verb!Var(key)! refers to a matrix found in the attribute map, and \Verb!playLinear()! produces a one-dimensional ``flattened'' stream of its contents:
+%
+\begin{lstlisting}[style=scala]
+val mat: DataSource.Variable[S] = ???
+val f = FScape[S]
+f.graph() = Graph {
+  val v     = Var("var")
+  val value = v.playLinear()
+  val mx    = RunningMax(value).last
+  val mn    = RunningMin(value).last
+  MkDouble("max", mx)
+  MkDouble("min", mn)
+}
+val outMx = f.outputs.add("max", DoubleObj)
+val outMn = f.outputs.add("min", DoubleObj)
+f.attr.put("var", mat)
+\end{lstlisting}
+%
+In this example, we calculate the minimum and maximum element of a matrix and make it available through two outputs named \Verb!min! and \Verb!max!. These can be used in a subsequent real-time process as scalar inputs.
 
-\subsubsection{Next Steps}
+The implementation of the one-dimensional reader was quite challenging and is outlined in the next section.
+
+\subsection{Implementing a one-dimensional NetCDF reader}
+
+In order to stream arbitrary chunks of data from a NetCDF file into FScape, we need to overcome a limitation of the NetCDF API, namely that its own \Verb!read! command requires a regular, \emph{rectangular} (hypercube) sectioning of the overall matrix, although of course, in the back-end inside the file, the data is stored in a flat manner. This problem hadn't occurred yet in the real-time part, because here we always require that one of the matrix dimensions is used as a temporal unrolling, while all other dimensions contribute to the the multi-channel-expanded signal. Implementing the 1D reader nevertheless has also benefit for the real-time part, as we will be able to add new UGens for example for a simple audification or ``space-filling'' usage of the matrix.
+
+To solve this problem, we need an algorithm that converts, for a given (\Verb!off!, \Verb!len!) range in the flattened representation of a matrix (indices from zero to the number of elements in the matrix), this range into a sequence of regular hypercubes that can be then used to issue corresponding read commands and concatenate the individual results. For performance reasons, we want the number of commands to be as small as possible.
+
+For example, we can calculate index vectors for the set of dimensions giving a linear index:
+%
+\begin{lstlisting}[style=scala]
+def calcIndices(off: Int, shape: Vector[Int]): Vector[Int] = {
+  val modsDivs = shape zip shape.scanRight(1)(_ * _).tail
+  modsDivs.map { case (mod, div) =>
+    (off / div) % mod
+  }
+}
+\end{lstlisting}
+%
+To develop a solution, let us say the shape is, for example, this, representing an array with rank 4 and 120 elements in total:
+%
+\begin{lstlisting}[style=scala]
+val sz  = Vector(2, 3, 4, 5)
+val num = sz.product  // 120
+\end{lstlisting}
+%
+A utility to print these index vectors for a range of linear offsets:
+%
+\begin{lstlisting}[style=scala]
+def printIndices(off: Int, len: Int): Unit =
+  (off until (off + len)).map(calcIndices(_, sz))
+    .map(_.mkString("[", ", ", "]")).foreach(println)
+\end{lstlisting}
+%
+We can generate all those vectors:
+%
+\begin{lstlisting}[style=scala]
+printIndices(0, num)
+
+[0, 0, 0, 0]
+[0, 0, 0, 1]
+[0, 0, 0, 2]
+[0, 0, 0, 3]
+[0, 0, 0, 4]
+[0, 0, 1, 0]
+[0, 0, 1, 1]
+[0, 0, 1, 2]
+[0, 0, 1, 3]
+[0, 0, 1, 4]
+[0, 0, 2, 0]
+[0, 0, 2, 1]
+[0, 0, 2, 2]
+[0, 0, 2, 3]
+[0, 0, 2, 4]
+[0, 0, 3, 0]
+[0, 0, 3, 1]
+[0, 0, 3, 2]
+[0, 0, 3, 3]
+[0, 0, 3, 4]
+[0, 1, 0, 0]
+...
+[1, 2, 1, 4]
+[1, 2, 2, 0]
+[1, 2, 2, 1]
+[1, 2, 2, 2]
+[1, 2, 2, 3]
+[1, 2, 2, 4]
+[1, 2, 3, 0]
+[1, 2, 3, 1]
+[1, 2, 3, 2]
+[1, 2, 3, 3]
+[1, 2, 3, 4]
+\end{lstlisting}
+%
+We can understand these indices as selecting sub-elements in the
+total section of the matrix we want to read. What we see in the preceding list is how the interleaving of indices works.
+ 
+Let us look at an example chunk that should be read,
+the first six elements:
+%
+\begin{lstlisting}[style=scala]
+val off1 = 0
+val len1 = 6
+printIndices(off1, len1)
+\end{lstlisting}
+%
+I will already partition the output by hand into the desired hypercubes:
+%
+\begin{lstlisting}[style=scala]
+// first hypercube or read
+[0, 0, 0, 0]
+[0, 0, 0, 1]
+[0, 0, 0, 2]
+[0, 0, 0, 3]
+[0, 0, 0, 4]
+
+// second hypercube or read
+[0, 0, 1, 0]
+\end{lstlisting}
+%
+So we need an algorithm that performs the analysis that gives us this partitioning into two read commands. The two commands are, reducing these sub-sequences of indices to \emph{ranges}, \Verb![0 to 0, 0 to 0, 0 to 0, 0 to 4]! (a hypercube of five elements), and\\
+\Verb![0 to 0, 0 to 0, 1 to 0, 0 to 0]! (a hypercube of one element). It should also be obvious that these are not the same as a single \Verb![0 to 0, 0 to 0, 1 to 0, 0 to 4]! would describe (wrongly) a hypercube of ten instead of six elements.
+
+\textbf{So the task is to define a method}
+%
+\begin{lstlisting}[style=scala]
+def partition(shape: Vector[Int], off: Int, len: Int): List[Vector[Range]]
+\end{lstlisting}
+%
+which outputs the correct list and uses the smallest possible list size.
+So for \Verb!off1! and \Verb!len1!, we have the expected result:
+%
+\begin{lstlisting}[style=scala]
+val res1 = List(
+  Vector(0 to 0, 0 to 0, 0 to 0, 0 to 4),
+  Vector(0 to 0, 0 to 0, 1 to 1, 0 to 0)
+)
+    
+assert(res1.map(_.map(_.size).product).sum == len1)
+\end{lstlisting}
+%
+A second example, elements at indices 6 until 22, with manual partitioning giving three hypercubes or read commands:
+%
+\begin{lstlisting}[style=scala]
+val off2 = 6
+val len2 = 16
+printIndices(off2, len2)
+
+// first hypercube or read
+[0, 0, 1, 1]
+[0, 0, 1, 2]
+[0, 0, 1, 3]
+[0, 0, 1, 4]
+
+// second hypercube or read
+[0, 0, 2, 0]
+[0, 0, 2, 1]
+[0, 0, 2, 2]
+[0, 0, 2, 3]
+[0, 0, 2, 4]
+[0, 0, 3, 0]
+[0, 0, 3, 1]
+[0, 0, 3, 2]
+[0, 0, 3, 3]
+[0, 0, 3, 4]
+
+// third hypercube or read
+[0, 1, 0, 0]
+[0, 1, 0, 1]
+
+expected result:
+
+val res2 = List(
+  Vector(0 to 0, 0 to 0, 1 to 1, 1 to 4),
+  Vector(0 to 0, 0 to 0, 2 to 3, 0 to 4),
+  Vector(0 to 0, 1 to 1, 0 to 0, 0 to 1)
+)
+
+assert(res2.map(_.map(_.size).product).sum == len2)
+\end{lstlisting}
+
+\subsubsection*{Solution}
+
+The idea of the solution algorithm is as follows:
+
+\begin{itemize}
+\item a \textbf{point-of-interest (poi)} is the left-most position
+  at which two index representations differ
+  (for example for \Verb![0, 0, 0, 1]! and \Verb![0, 1, 0, 0]! the poi is \Verb!1!)
+\item we recursively sub-divide the original (start, stop) linear index range
+\item we use motions in two directions, first by keeping the start constant
+  and decreasing the stop through a special "ceil" operation on the start,
+  later by keeping the stop constant and increasing the start through
+  a special "floor" operation on the stop
+\item for each sub range, we calculate the poi of the boundaries, and
+  we calculate "trunc" which is ceil or floor operation described above
+\item if this trunc value is identical to its input, we add the entire region
+  and return
+\item otherwise we recurse
+\item the special "ceil" operation takes the previous start value and
+  increases the element at the poi index and zeroes the subsequent elements;
+  e.g. for \Verb![0, 0, 1, 1]! and \Verb!poi = 2!, the ceil would be \Verb![0, 0, 2, 0]!
+\item the special "floor" operation takes the previous stop value and
+  zeroes the elements after the poi index;
+  e.g. for \Verb![0, 0, 1, 1]!, and \Verb!poi = 2!, the floor would be \Verb![0, 0, 1, 0]!
+\end{itemize}
+%
+Here is the basics of the implementation. First, a few utility functions:
+%
+\begin{lstlisting}[style=scala]
+def calcIndices(off: Int, shape: Vector[Int]): Vector[Int] = {
+  val modsDivs = (shape, shape.scanRight(1)(_ * _).tail, shape.indices).zipped
+  modsDivs.map { case (mod, div, idx) =>
+    val x = off / div
+    if (idx == 0) x else x % mod
+  }
+}
+
+def calcPOI(a: Vector[Int], b: Vector[Int], min: Int): Int = {
+  val res = (a.drop(min) zip b.drop(min)).indexWhere { case (ai,bi) => ai != bi }
+  if (res < 0) a.size else res + min
+}
+
+def zipToRange(a: Vector[Int], b: Vector[Int]): Vector[Range] =
+  (a, b).zipped.map { (ai, bi) =>
+    require (ai <= bi)
+    ai to bi
+  }
+  
+def calcOff(a: Vector[Int], shape: Vector[Int]): Int = {
+  val divs = shape.scanRight(1)(_ * _).tail
+  (a, divs).zipped.map(_ * _).sum
+}
+
+def indexTrunc(a: Vector[Int], poi: Int, inc: Boolean): Vector[Int] =
+  a.zipWithIndex.map { case (ai, i) =>
+    if      (i < poi) ai
+    else if (i > poi) 0
+    else if (inc)     ai + 1
+    else              ai
+  }
+\end{lstlisting}
+%
+Then the actual algorithm:
+%
+\begin{lstlisting}[style=scala]
+def partition(shape:Vector[Int],off:Int,len:Int):List[Vector[Range]]={
+  val rankM = shape.size - 1
+
+  def loop(start: Int, stop: Int, poiMin: Int, dir: Boolean,
+           res0: List[Vector[Range]]): List[Vector[Range]] =
+    if (start == stop) res0 else {
+      val last = stop - 1
+      val s0  = calcIndices(start, shape)
+      val s1  = calcIndices(stop , shape)
+      val s1m = calcIndices(last , shape)
+      val poi = calcPOI(s0, s1m, poiMin)
+      val ti  = if (dir) s0 else s1
+      val to  = if (dir) s1 else s0
+      val st  = if (poi >= rankM) to else indexTrunc(ti, poi, inc=dir)
+
+      val trunc = calcOff(st, shape)
+      val split = trunc != (if (dir) stop else start)
+
+      if (split) {
+        if (dir) {
+          val res1= loop(start,trunc,poiMin=poi+1,dir=true ,res0=res0)
+          loop          (trunc,stop ,poiMin=0    ,dir=false,res0=res1)
+        } else {
+          val s1tm = calcIndices(trunc - 1, shape)
+          val res1 = zipToRange(s0, s1tm) :: res0
+          loop          (trunc,stop ,poiMin=poi+1,dir=false,res0=res1)
+        }
+      } else {
+        zipToRange(s0, s1m) :: res0
+      }
+    }
+
+  loop(off, off + len, poiMin = 0, dir = true, res0 = Nil).reverse
+}
+\end{lstlisting}
+%
+Examples:
+%
+\begin{lstlisting}[style=scala]
+val sz  = Vector(2, 3, 4, 5)
+partition(sz, 0, 6)
+
+// result:
+List(
+  Vector(0 to 0, 0 to 0, 0 to 0, 0 to 4),  // first  hypercube
+  Vector(0 to 0, 0 to 0, 1 to 1, 0 to 0)   // second hypercube
+)
+
+partition(sz, 6, 21)
+
+// result:
+List(
+  Vector(0 to 0, 0 to 0, 1 to 1, 1 to 4),  // first  read
+  Vector(0 to 0, 0 to 0, 2 to 3, 0 to 4),  // second read
+  Vector(0 to 0, 1 to 1, 0 to 0, 0 to 4),  // third  read
+  Vector(0 to 0, 1 to 1, 1 to 1, 0 to 1)   // fourth read
+)
+\end{lstlisting}
+%
+The maximum number of reads, if I am not mistaken, would be \Verb!2 * rank!.
+The (optimised) implementation is now integrated with the \software{LucreMatrix} library.
+
+\subsection{Next Steps}
 
 The remaining six steps will be covered in the next technical report.
 

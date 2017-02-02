@@ -1,0 +1,222 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{geometry}
+ \geometry{
+ a4paper,
+ total={150mm,237mm},
+ left=30mm,
+ top=30mm,
+ }
+
+% cf. http://tex.stackexchange.com/questions/50182/subtitle-with-the-maketitle-page
+\usepackage{titling}
+\newcommand{\subtitle}[1]{%
+  \posttitle{%
+    \par\end{center}
+    \begin{center}\large\textbf{#1}\end{center}
+    \vskip0.5em}%
+}
+
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage{subcaption}
+
+% cf. https://tex.stackexchange.com/questions/58713
+\usepackage{enumitem}
+
+\usepackage[utf8]{inputenc}
+\usepackage[lf]{venturis} %% lf option gives lining figures as default; 
+\usepackage[T1]{fontenc}
+\usepackage{beramono}
+\usepackage{csquotes}
+\usepackage[UKenglish,german]{babel}
+
+\usepackage{fancyvrb}
+
+\widowpenalty10000  % http://tex.stackexchange.com/questions/4152/how-do-i-prevent-widow-orphan-lines
+\clubpenalty10000
+
+\title{The SysSon Platform}
+\subtitle{Technical Report TR-2017-02-1\\Institute of Electronic Music and Acoustics, Graz\\(Status: in progress)}
+\author{Hanns Holger Rutz}
+% \date{09-Feb-2016}
+\date{January 2017}
+
+% cf. https://tex.stackexchange.com/questions/94126/change-font-to-only-section-and-subsection-of-my-document
+%\usepackage{titlesec}
+%\titleformat{\chapter}[display]
+%  {\fontfamily{pag}\selectfont\huge\bfseries}
+%  {\chaptertitlename\ \thechapter}
+%  {20pt}
+%  {\Huge}
+%\titleformat{\section}
+%  {\fontfamily{pag}\selectfont\bfseries\Large}
+%  {\thesection}
+%  {1em}
+%  {}
+%\titleformat{\subsection}
+%  {\fontfamily{pag}\selectfont\bfseries\Large}
+%  {\thesection}
+%  {1em}
+%  {}
+
+\usepackage[backend=biber,authordate]{biblatex-chicago} % citereset=chapter
+%\usepackage[backend=biber,natbib,isbn=false,useprefix=true,sorting=ydnt]{biblatex-chicago} % citereset=chapter
+\addbibresource{all.bib} % add a bib-reference file
+\addbibresource{rutz.bib} % add a bib-reference file
+
+% warning: https://tex.stackexchange.com/questions/313477/
+% \usepackage{csquotes}
+
+\usepackage{tabularx}
+% cf. https://tex.stackexchange.com/questions/84400/table-layout-with-tabularx-column-widths-502525
+\newcolumntype{s}{>{\hsize=1cm}X}
+
+% says you should load after babel and fontspec
+\usepackage[shrink=10, babel=true]{microtype}	% http://tex.stackexchange.com/questions/141852/latex-allows-line-break-between-concluding-em-dash-and-comma-before-a-new-sub-cl/141854#141854
+
+% has to come first for full scale TeX voodoo bullcrap
+\usepackage{hyperref}
+% get rid of the horrible coloured boxes around links
+\hypersetup{
+    colorlinks,%
+    citecolor=black,%
+    filecolor=black,%
+    linkcolor=black,%
+    urlcolor=black
+}
+% has to come after frickin hyperref
+\VerbatimFootnotes
+
+\newcommand{\todo}[1]{\colorbox{yellow}{\textsc{todo}: #1}}
+
+\newcommand{\quot}[1]{\guillemotleft {#1}\guillemotright}
+
+\newcommand{\worktitle}[1]{\textit{#1}}
+
+\newcommand{\workentry}[2]{\vspace{7.5pt}\noindent\textbf{#1} (#2)}
+\newcommand{\workentrySel}[2]{\vspace{7.5pt}\noindent\textbf{#1}$*$ (#2)}
+
+\newcommand{\figref}[1]{Fig.~\ref{#1}}
+
+\newcommand{\software}[1]{\textit{#1}}
+
+\newcommand{\sysson}[0]{SysSon}
+\newcommand{\syssonVersion}[0]{1.8.0}
+\newcommand{\syssonVersionS}[0]{1.8.0-SNAPSHOT}
+
+\newcommand{\artefacts}[0]{\textsc{Artefacts:}}
+\newcommand{\assessment}[0]{\textsc{Assessment:}}
+
+\usepackage{listings}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstdefinestyle{plain}{
+  frame=tb,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=true,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  frame=none,
+  keepspaces=true,
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3,
+}
+
+\lstdefinestyle{scala}{
+  frame=tb,
+  language=scala,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=true,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  frame=none,
+  keepspaces=true,
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3,
+}
+
+\lstdefinestyle{scala-small}{
+  frame=tb,
+  language=scala,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=true,
+  columns=flexible,
+  basicstyle={\tiny\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  frame=none,
+  keepspaces=true,
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3,
+}
+
+\begin{document}
+% \begin{titlepage}
+\maketitle
+\selectlanguage{UKenglish}
+\thispagestyle{empty}
+\newpage
+\section{Adding an Offline Preprocessing Stage}
+
+\subsection{Next Steps}
+
+The remaining six steps will be covered in the next technical report.
+
+\subsubsection{Accessing Sonification Instances}
+
+\todo{}
+
+\subsubsection{Meta Data UGens}
+
+\todo{}
+
+\subsubsection{Dimensional Operators}
+
+\todo{}
+
+\subsubsection{Matrix Output}
+
+\todo{}
+
+\subsubsection{Matrix Linkage from Offline to Real-Time}
+
+\todo{}
+
+\subsubsection{Implementing Anomalies and Blobs}
+
+%%
+%\begin{lstlisting}[style=scala]
+%trait Output[S <: Sys[S]] {
+%  def fscape: FScape[S]
+%  def key   : String
+%  def tpe   : Obj.Type
+%  // def tpeID: Int
+%  def value(implicit tx: S#Tx): Option[Obj[S]]  
+%}
+%\end{lstlisting}
+%%
+
+\end{document}
