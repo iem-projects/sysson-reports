@@ -187,13 +187,15 @@ In the summer of 2016, I began to implement the next-generation FScape software,
 
 \subsection{Implementation Steps}
 
-We have collected the required steps for a full implementation for processing matrices offline in SysSon below. As of January 26, the first five steps have been completed.
+We have collected the required steps for a full implementation for processing matrices offline in SysSon below. As of February 2, the first five steps have been completed.
 
 \begin{enumerate}
 \item enhance SoundProcesses by "lazily" calculated objects
 \item implement such a lazy object interface for FScape output
 \item implement a caching mechanism for these objects
+\item make it possible to use these cached instances as input to the real-time playback
 \item implement a simple SysSon matrix reader in FScape
+%
 \item make \verb!Sonification! instance matrices available in FScape
 \item add commonly required meta data UGens, such as rank, size, dimensional information
 \item add dimensional operators, such as transposition
@@ -204,43 +206,53 @@ We have collected the required steps for a full implementation for processing ma
 
 \subsubsection{Lazily Calculated Objects}
 
-\todo{}
+\software{SoundProcesses} now makes a simple provision to add support for lazily calculated objects (as would occur in \software{FScape}). A new \Verb!Obj! type \Verb!Gen! was added that acts as an opaque container for an eventually calculated peer object.
+
+The only way to get hold of that value is to create a \Verb!GenView! instance. This instance, once created and until it is disposed, acts as an acquired lock on the caching/cached resource. A \Verb!GenView! is created by passing a \Verb!Gen! instance and an implicit \Verb!GenContext!. This context ensures that rendering processes are shared within a workspace between multiple occurrences of the \Verb!Gen! objects.
+
+The \Verb!GenView! is similar to a transactional future. It has a method \Verb!value! that returns a \Verb!Option[Try[Obj[S]]!---corresponding to a \Verb!future.value!---a state that indicates the current progress or completion, and it is observable for state updates.
 
 \subsubsection{Lazily Objects in FScape}
 
-\todo{}
+Similar to aural views, gen views are created by factories which are globally registered for a specific peer data type. In \Verb!FScape! we created a new object type \Verb!FScape.Output! that is a sub-type of \Verb!Gen!, and a default gen-view factory for this type. The view type is \Verb!OutputGenView! and it combines an instance of \Verb!FScape.Rendering! with an \Verb!FScape.Output!. We ensure that at maximum one rendering instance is running for an \Verb!FScape! object. All outputs, i.e. all lazily created by rendering the same graph function, are thus grouped together.
 
 \subsubsection{Caching Objects}
 
-\todo{}
+When requesting an instance of \Verb!FScape.Rendering!, the graph function is converted into a cache key. The graph expansion is now explicitly divided into two stages, the first giving the collection of UGens, the second creating the stream nodes in the Akka framework. In order to calculate the cache key, we only have to execute the first stage. The structure captures the positions of the constants and UGens in the graph, and collects for each UGen an ``auxiliary'' object that represents the structural data uniquely identifying the environmental inputs of the UGen. For example, this may contain the path name, length and modification date of an input file, or a constant such as an integer or a string obtained during the first graph expansion stage.
+
+Each entry in the cache is associated with a value structure that contains the peer data for all \Verb!FScape.Output! instances. When graph elements provide a coupling to an \Verb!FScape.Output!, they call \Verb!requestOutput! on the graph builder, providing the a \Verb!Output.Reader! that can \emph{de-serialize} the peer data stored in a cache value. Correspondingly, \Verb!requestOutput! returns an \Verb!OutputRef!, eventually passed to the stream graph element, that has a method \Verb!complete! to be invoked once that stream graph element has determined the peer data. The value passed to \Verb!complete! is an instance of \Verb!Output.Writer!, capable of adding serialised data to the cache value when it is written.
+
+So, when requesting an instance of \Verb!FScape.Rendering!, either a valid cache entry is found (through the structure key), and the ``rendering'' is actually not a running rendering but an encapsulation of the already known result, or if not, an actual rendering will begin, and when it terminates, the cache entry is written.
+
+To summarise, \Verb!FScape.Rendering! denotes an ongoing or finished (read from cache) rendering process, it encapsulates the peer data of \emph{all} connected outputs of an \Verb!FScape! object. The outputs are opaque objects, by way of \Verb!GenView(output)! one obtains \Verb!OutputGenView! instances for these, which in turn extract their particular peer data by querying the common \Verb!Rendering! instance. By calling \Verb!genView.dispose()!, access to that data is nominally lost, and the system may decide to wipe the cache data if needed (for example, if a given maximum cache size is exceeded).
+
+\subsubsection{Using Cached Objects in Real-Time Playback}
+
+Cached objects appear as values in another object's attribute map, so for example, the result of calculating a number might be a \Verb!Gen! whose peer data is an integer or a double, and this \Verb!Gen! instance will now appear in an attribute map instead of an ``eager'' \Verb!IntObj! or \Verb!DoubleObj!. This requires that especially the implementation of \Verb!AuralProc! recognises these new objects.
+
+While a \Verb!UGenGraphBuilder.Value! has a \verb!async! flag that could be useful here, we can first focus on input that must be resolved at graph expansion time, including scalar attributes without default value (and thus without a default number of channels). This is a simpler approach: When encountering a \Verb!Gen! during a \Verb!requestInput! call, we get hold of a \Verb!GenView!. We maintain a new map inside the aural-proc from attribute keys to gen-view instances. So, in \verb!requestInput!, when this map does not contain the attribute key, we create the \Verb!GenView! and store it there. We then call \Verb!value! to see if the peer value is already available. If so, we look at this value and proceed as normal. If not, it means we need to wait for the rendering, and at this time, we cannot determine required properties such as the number-of-channels of a scalar input. We can throw a \Verb!MissingIn! exception, an established mechanism for deferring the playback of a proc until all required attribute inputs are present. Additionally, we need to track the completion of any \Verb!GenView! we have thus created. Similar to the \verb!attrAdded! method which is invoked when an attribute is added to the proc's attribute map, we check if the completed view corresponds to one of the missing keys in the incomplete UGen builder state. If so, we attempt the build again.
+
+A bit of complexity is added by the fact that we now must support \Verb!Gen! in a number of scenarios, from scalar values to in-memory buffers to streamed buffers. We have implemented all of these cases, but a future overhaul should look at a more general and DRY solution.
 
 \subsubsection{Simple SysSon Matrix Reader UGen}
 
 \todo{}
 
-\subsubsection{Accessing Sonification Instances}
+\subsubsection{Next Steps}
 
-\todo{}
+The remaining six steps will be covered in the next technical report.
 
-\subsubsection{Meta Data UGens}
-
-\todo{}
-
-\subsubsection{Dimensional Operators}
-
-\todo{}
-
-\subsubsection{Matrix Output}
-
-\todo{}
-
-\subsubsection{Matrix Linkage from Offline to Real-Time}
-
-\todo{}
-
-\subsubsection{Implementing Anomalies and Blobs}
-
-\todo{}
+%\subsubsection{Accessing Sonification Instances}
+%
+%\subsubsection{Meta Data UGens}
+%
+%\subsubsection{Dimensional Operators}
+%
+%\subsubsection{Matrix Output}
+%
+%\subsubsection{Matrix Linkage from Offline to Real-Time}
+%
+%\subsubsection{Implementing Anomalies and Blobs}
 
 %%
 %\begin{lstlisting}[style=scala]
