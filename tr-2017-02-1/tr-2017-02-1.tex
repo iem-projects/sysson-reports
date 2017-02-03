@@ -183,9 +183,42 @@
 
 \subsection{Next Steps}
 
-The remaining six steps will be covered in the next technical report.
+The remaining six steps will be covered in this technical report.
 
 \subsubsection{Accessing Sonification Instances}
+
+There is a persistent problem of understanding how to correctly model nested or extended objects. The \Verb!proc! inside a \Verb!Sonification! is one example. How to provide sonification context when creating an \Verb!AuralProc!? We have solved this ``top-down'' by enforcing the \Verb!AuralProc! to be created from inside an \Verb!AuralSonification!, essentially extending the implementation of the former type.
+
+With \Verb!FScape! this problem reappears: If an aural-proc encounters a \Verb!Gen!, we will be able to construct an fscape-rendering from the gen-view-factory, but if the FScape graph itself wants to access the sonification, for example the \Verb!sources! map of matrices, how we do that? Unambiguous association is theoretically impossible, as there is no 1:1 relationship between an \Verb!FScape! instance and some outer \Verb!Sonification! (the same fscape could be part of two different sonifications, for example).
+
+A simple work-around however is to hook into our custom gen-view-factory. This factory is globally installed to support SysSon UGens inside \Verb!FScape! by way of providing a \Verb!UGenGraphBuilderContextImpl!, somehow the equivalent of the aural-view. It is here that \Verb!requestInput! is invoked, and therefore this is the point where we can try to find the sonification. The relevant \Verb!requestInput! calls may then come from the real-time part of the aural-sonification, when resolving a \Verb!Gen!. In that part, we store the sonification in a transaction-local variable, and this can be recovered in \Verb!requestInput!.
+
+\subsection{Next Steps}
+
+In order to make good choices in the next steps, we should consider a specific example of offline processing, the pieces of which must be enabled in these steps to eventually write a fully functional program.
+
+Say, we have a dimension reference and we average the matrix over that dimension and output it as a new matrix. For example, the input matrix has shape [time:180, lon:12, lat:36, alt:601], and we want to average across the longitudes, yielding shape [time:180, lat:36, alt:601]. So we have to average 180 times 12 windows of size $36 \times 601 = 21636$. That's an in-memory buffer of roughly 2 MB.
+
+Hypothetical program:
+%
+\begin{lstlisting}[style=scala]
+Graph {
+  val v       = Var("var")
+  val d       = Dim(v, "dim")
+  val p       = v.playLinear()
+  val dSz     = d.size
+  val tSz     = d.succSize  // good name?
+  val cSz     = dSz * tSz
+  val m       = Metro(cSz)
+  val sum     = RunningWindowSum(p, tSz, m)
+  val last    = ResizeWindow(sum, size = cSz, start = cSz - dSz)
+  val specIn  = v.spec
+  val specOut = specIn.drop(d)
+  VarOut(file("avg.nc"), specOut, in = last)
+}
+\end{lstlisting}
+
+Here we introduce a hypothetical UGen that directly writes a NetCDF file. Eventually, we will want to provide an \Verb!FScape.Output! instead, probably naming the UGen \Verb!MkVar!.
 
 \todo{}
 
