@@ -199,24 +199,33 @@ In order to make good choices in the next steps, we should consider a specific e
 
 Say, we have a dimension reference and we average the matrix over that dimension and output it as a new matrix. For example, the input matrix has shape [time:180, lon:12, lat:36, alt:601], and we want to average across the longitudes, yielding shape [time:180, lat:36, alt:601]. So we have to average 180 times 12 windows of size $36 \times 601 = 21636$. That's an in-memory buffer of roughly 2 MB.
 
-Hypothetical program:
+A hypothetical program is given in \figref{lst:averaging}.
 %
+\begin{figure}
 \begin{lstlisting}[style=scala]
 Graph {
   val v       = Var("var")
   val d       = Dim(v, "dim")
   val p       = v.playLinear()
+  val isOk    = p >= 0 & p < 1000 // TODO, need isFillValue function
+  val flt     = p * isOk
   val dSz     = d.size
   val tSz     = d.succSize  // good name?
   val cSz     = dSz * tSz
   val m       = Metro(cSz)
-  val sum     = RunningWindowSum(p, tSz, m)
-  val last    = ResizeWindow(sum, size = cSz, start = cSz - dSz)
+  val sum     = RunningWindowSum(flt , tSz, m)
+  val count   = RunningWindowSum(isOk, tSz, m)
+  val sumTrunc= ResizeWindow(sum  , size = cSz, start = cSz - tSz)
+  val cntTrunc= ResizeWindow(count, size = cSz, start = cSz - tSz)
+  val dataOut = sumTrunc / cntTrunc
   val specIn  = v.spec
   val specOut = specIn.drop(d)
-  VarOut(file("avg.nc"), specOut, in = last)
+  VarOut("file", specOut, in = dataOut)
 }
 \end{lstlisting}
+\caption{Offline patch averaging over a dimension}
+\label{lst:averaging}
+\end{figure}
 
 Here we introduce a hypothetical UGen that directly writes a NetCDF file. Eventually, we will want to provide an \Verb!FScape.Output! instead, probably naming the UGen \Verb!MkVar!.
 
