@@ -204,9 +204,9 @@ A hypothetical program is given in \figref{lst:averaging}.
 \begin{figure}
 \begin{lstlisting}[style=scala]
 Graph {
-  val v       = Var("var")
+  val v       = Matrix("var")
   val d       = Dim(v, "dim")
-  val p       = v.playLinear()
+  val p       = v.valueSeq
   val isOk    = p >= 0 & p < 1000 // TODO, need isFillValue function
   val flt     = p * isOk
   val dSz     = d.size
@@ -220,7 +220,7 @@ Graph {
   val dataOut = sumTrunc / cntTrunc
   val specIn  = v.spec
   val specOut = specIn.drop(d)
-  VarOut("file", specOut, in = dataOut)
+  MatrixOut("file", specOut, in = dataOut)
 }
 \end{lstlisting}
 \caption{Offline patch averaging over a dimension}
