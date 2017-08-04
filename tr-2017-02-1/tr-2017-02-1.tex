@@ -37,10 +37,10 @@
 \clubpenalty10000
 
 \title{The SysSon Platform}
-\subtitle{Technical Report TR-2017-02-1\\Institute of Electronic Music and Acoustics, Graz\\(Status: in progress)}
+\subtitle{Technical Report TR-2017-02-1\\Institute of Electronic Music and Acoustics, Graz\\(Status: completed)}
 \author{Hanns Holger Rutz}
 % \date{09-Feb-2016}
-\date{January 2017}
+\date{March 2017}
 
 % cf. https://tex.stackexchange.com/questions/94126/change-font-to-only-section-and-subsection-of-my-document
 %\usepackage{titlesec}
@@ -229,36 +229,10 @@ Graph {
 
 Here we introduce a hypothetical UGen that directly writes a NetCDF file. Eventually, we will want to provide an \Verb!FScape.Output! instead, probably naming the UGen \Verb!MkVar!.
 
-\todo{}
+\subsubsection{Implementation and Publication}
 
-\subsubsection{Meta Data UGens}
+The design and implementation is described in detail in the SMC 2017 paper:
+H. H. Rutz and R. Höldrich, “A Sonification Interface Unifying Real-Time and Offline Processing,” in Proceedings of the 14th Sound and Music Computing Conference (SMC), Espoo, 2017.
 
-\todo{}
-
-\subsubsection{Dimensional Operators}
-
-\todo{}
-
-\subsubsection{Matrix Output}
-
-\todo{}
-
-\subsubsection{Matrix Linkage from Offline to Real-Time}
-
-\todo{}
-
-\subsubsection{Implementing Anomalies and Blobs}
-
-%%
-%\begin{lstlisting}[style=scala]
-%trait Output[S <: Sys[S]] {
-%  def fscape: FScape[S]
-%  def key   : String
-%  def tpe   : Obj.Type
-%  // def tpeID: Int
-%  def value(implicit tx: S#Tx): Option[Obj[S]]  
-%}
-%\end{lstlisting}
-%%
 
 \end{document}
